@@ -1,134 +1,66 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Inventario - Grupo Armenta</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario</title>
 <style>
-  body { font-family: Arial, sans-serif; padding:20px; max-width:1100px; margin:auto; }
-  h1 { margin:0 0 10px 0; }
-  .controls { margin:10px 0 20px 0; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  input, select, button { padding:8px; font-size:14px; }
-  table { border-collapse:collapse; width:100%; margin-top:12px; }
-  th, td { border:1px solid #ddd; padding:8px; text-align:left; }
-  th { background:#f7f7f7; }
-  #msg { margin-top:8px; color:#666; }
-  #count { font-weight:600; margin-left:10px; }
-  .small { font-size:13px; color:#666; }
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  input { padding: 8px; width: 300px; }
+  table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 8px; }
+  th { background: #f4f4f4; }
 </style>
 </head>
 <body>
-  <h1>Inventario — Grupo Armenta</h1>
 
-  <div class="controls">
-    <label class="small">Columna empleado:</label>
-    <select id="colEmpleadoSelect"></select>
+<h2>Consulta de Inventario</h2>
+<input type="text" id="buscar" placeholder="Escribe el nombre del empleado...">
 
-    <label class="small">Buscar:</label>
-    <input id="buscador" placeholder="Escribe nombre del empleado..." />
-
-    <button id="limpiar">Limpiar</button>
-    <span id="count"></span>
-  </div>
-
-  <div id="msg">Cargando datos...</div>
-
-  <table id="tabla" aria-live="polite">
-    <thead><tr id="cabecera"></tr></thead>
-    <tbody id="contenido"></tbody>
-  </table>
+<table id="tabla">
+  <thead>
+    <tr>
+      <th>Empleado</th>
+      <th>Equipo</th>
+      <th>Serie</th>
+      <th>Detalles</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
 <script>
-/* ==== CONFIGURA ESTO ==== */
-const SHEET_ID = "1KdupeI8b4ePrCIhAkzP8ZhpdqXFZiPT1Q4bbhC3pRq0";
-const SHEET_NAME = "Computo"; // ejemplo: Hoja1
-const EMPLOYEE_COLNAME_DEFAULT = "Empleado"; // nombre por defecto que buscas (se puede elegir luego)
-/* ======================== */
-
-const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
-const msg = document.getElementById('msg');
-const cabecera = document.getElementById('cabecera');
-const contenido = document.getElementById('contenido');
-const buscador = document.getElementById('buscador');
-const colEmpleadoSelect = document.getElementById('colEmpleadoSelect');
-const countSpan = document.getElementById('count');
-const limpiarBtn = document.getElementById('limpiar');
-
-let filas = []; // array de objetos [{col1:val, col2:val}, ...]
-
-function normalizeText(s){
-  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-}
-
-function buildTable(rows, headers){
-  // headers = array de nombres
-  cabecera.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
-  contenido.innerHTML = '';
-  rows.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = headers.map(h => `<td>${r[h] !== undefined ? r[h] : ''}</td>`).join('');
-    contenido.appendChild(tr);
-  });
-  countSpan.textContent = `${rows.length} resultado(s)`;
-}
-
-function filterByQuery(){
-  const q = normalizeText(buscador.value);
-  const selectedCol = colEmpleadoSelect.value;
-  if(!q){
-    buildTable(filas, headersGlobal);
-    return;
-  }
-  const filtered = filas.filter(r => normalizeText(r[selectedCol]).includes(q));
-  buildTable(filtered, headersGlobal);
-}
-
-let headersGlobal = [];
+const SHEET_ID = "1KdupeI8b4ePrCIhAkzP8ZhpdqXFZiPT1Q4bbhC3pRq0"; // tu ID
+const SHEET_NAME = "Computo"; // nombre exacto de la pestaña
+const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
 
 fetch(URL)
-  .then(r => r.text())
-  .then(text => {
-    // Extraer JSON del callback de Google
-    const jsonText = text.substring(text.indexOf('(')+1, text.lastIndexOf(')'));
-    const data = JSON.parse(jsonText);
-    const cols = data.table.cols.map((c,i) => (c && c.label && c.label.trim()) ? c.label.trim() : `Col${i+1}`);
-    headersGlobal = cols;
-    filas = (data.table.rows || []).map(row => {
-      const obj = {};
-      cols.forEach((colName, i) => {
-        const cell = (row.c && row.c[i]) ? row.c[i].v : "";
-        obj[colName] = cell !== undefined ? cell : "";
+  .then(res => res.text())
+  .then(data => {
+    const json = JSON.parse(data.substr(47).slice(0, -2));
+    const rows = json.table.rows;
+    const tbody = document.querySelector("#tabla tbody");
+
+    rows.forEach(row => {
+      const tr = document.createElement("tr");
+      row.c.forEach(cell => {
+        const td = document.createElement("td");
+        td.textContent = cell ? cell.v : "";
+        tr.appendChild(td);
       });
-      return obj;
+      tbody.appendChild(tr);
     });
 
-    // Llenar select de columnas (para elegir cuál es la columna empleado)
-    colEmpleadoSelect.innerHTML = cols.map(c => `<option value="${c}">${c}</option>`).join('');
-    // intentar seleccionar la columna por defecto
-    let foundIdx = cols.findIndex(c => normalizeText(c) === normalizeText(EMPLOYEE_COLNAME_DEFAULT));
-    if(foundIdx >= 0) colEmpleadoSelect.selectedIndex = foundIdx;
-
-    // UI: mostrar tabla con todos los datos
-    buildTable(filas, headersGlobal);
-    msg.textContent = "Datos cargados. Escribe el nombre del empleado para filtrar.";
-  })
-  .catch(err => {
-    console.error(err);
-    msg.textContent = "Error al cargar la hoja. Revisa que la hoja esté 'Publicada en la web', que el ID y el nombre de la pestaña sean correctos.";
+    document.getElementById("buscar").addEventListener("input", function() {
+      const filtro = this.value.toLowerCase();
+      const trs = tbody.querySelectorAll("tr");
+      trs.forEach(tr => {
+        const empleado = tr.children[0].textContent.toLowerCase();
+        tr.style.display = empleado.includes(filtro) ? "" : "none";
+      });
+    });
   });
-
-buscador.addEventListener('input', filterByQuery);
-colEmpleadoSelect.addEventListener('change', () => {
-  // limpiar búsqueda al cambiar columna
-  buscador.value = '';
-  buildTable(filas, headersGlobal);
-});
-limpiarBtn.addEventListener('click', () => { buscador.value = ''; buildTable(filas, headersGlobal); });
-
 </script>
+
 </body>
 </html>
-
-
-
-
