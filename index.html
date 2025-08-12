@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Inventario Grupo Armenta</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+input { padding: 8px; width: 300px; }
+table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+th { background-color: #f2f2f2; }
+</style>
+</head>
+<body>
+
+<h1>Consulta de Inventario</h1>
+<input type="text" id="buscador" placeholder="Escribe el nombre del empleado...">
+
+<table id="tabla">
+  <thead>
+    <tr id="cabecera"></tr>
+  </thead>
+  <tbody id="contenido"></tbody>
+</table>
+
+<script>
+const SHEET_ID = 1KdupeI8b4ePrCIhAkzP8ZhpdqXFZiPT1Q4bbhC3pRq0;
+const SHEET_NAME = Computo;
+const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
+
+fetch(URL)
+  .then(res => res.text())
+  .then(data => {
+    const json = JSON.parse(data.substr(47).slice(0, -2));
+    const cols = json.table.cols.map(col => col.label);
+    const rows = json.table.rows.map(row => row.c.map(cell => cell ? cell.v : ""));
+    
+    // Crear encabezado
+    document.getElementById("cabecera").innerHTML = cols.map(c => `<th>${c}</th>`).join("");
+    
+    // Crear contenido
+    const tbody = document.getElementById("contenido");
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = r.map(c => `<td>${c}</td>`).join("");
+      tbody.appendChild(tr);
+    });
+
+    // Buscador
+    document.getElementById("buscador").addEventListener("input", function() {
+      const filtro = this.value.toLowerCase();
+      tbody.querySelectorAll("tr").forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(filtro) ? "" : "none";
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
