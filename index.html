@@ -33,38 +33,52 @@
 </table>
 
 <script>
-const SHEET_ID = "1KdupeI8b4ePrCIhAkzP8ZhpdqXFZiPT1Q4bbhC3pRq0"; // tu ID
-const SHEET_NAME = "Computo"; // nombre exacto de la pestaña
-const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`;
+const SHEET_ID = "1KdupeI8b4ePrCIhAkzP8ZhpdqXFZiPT1Q4bbhC3pRq0";
+const GID = "1322760750"; // cambia al GID correcto
+const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
+let filas = []; // guardaremos los datos aquí después de cargar CSV
+const tbody = document.querySelector("#tabla tbody");
+const inputBuscar = document.getElementById("buscar");
+
+// Al cargar la página, cargamos el CSV pero no mostramos nada
 fetch(URL)
   .then(res => res.text())
-  .then(data => {
-    const json = JSON.parse(data.substr(47).slice(0, -2));
-    const rows = json.table.rows;
-    const tbody = document.querySelector("#tabla tbody");
+  .then(csv => {
+    filas = csv.trim().split("\n").map(line => line.split(","));
+    // filas[0] = encabezados
+  })
+  .catch(err => console.error("Error cargando CSV:", err));
 
-    rows.forEach(row => {
+// Función para mostrar filas filtradas
+function mostrarFilas(filtro) {
+  tbody.innerHTML = ""; // limpio tabla
+  if (!filtro) return; // si filtro vacío, no mostrar nada
+
+  const filtroLower = filtro.toLowerCase();
+
+  filas.slice(1).forEach(fila => {
+    // asumimos columna 0 = empleado, ajustar si no es así
+    if (fila[0].toLowerCase().includes(filtroLower)) {
       const tr = document.createElement("tr");
-      row.c.forEach(cell => {
+      fila.forEach(col => {
         const td = document.createElement("td");
-        td.textContent = cell ? cell.v : "";
+        td.textContent = col;
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
-    });
-
-    document.getElementById("buscar").addEventListener("input", function() {
-      const filtro = this.value.toLowerCase();
-      const trs = tbody.querySelectorAll("tr");
-      trs.forEach(tr => {
-        const empleado = tr.children[0].textContent.toLowerCase();
-        tr.style.display = empleado.includes(filtro) ? "" : "none";
-      });
-    });
+    }
   });
+}
+
+// Evento input para filtrar en tiempo real
+inputBuscar.addEventListener("input", e => {
+  mostrarFilas(e.target.value);
+});
+
 </script>
 
 </body>
 </html>
+
 
