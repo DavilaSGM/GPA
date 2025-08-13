@@ -6,16 +6,20 @@
 <title>Inventario - Grupo Armenta</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 20px; }
-  input { padding: 8px; width: 300px; }
+  input, button { padding: 8px; margin: 5px; }
   table { border-collapse: collapse; margin-top: 20px; width: 100%; }
   th, td { border: 1px solid #ccc; padding: 8px; }
   th { background: #f4f4f4; }
+  #contador { margin: 10px 5px; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <h2>Inventario Grupo Armenta</h2>
 <input type="text" id="buscar" placeholder="Escribe el nombre del empleado...">
+<button id="btnAll">Mostrar todo</button>
+<button id="btnClear">Limpiar</button>
+<div id="contador"></div>
 
 <table id="tabla">
   <thead>
@@ -39,53 +43,81 @@
 
 <script>
 const SHEET_ID = "1KdupeI8b4ePrCIhAkzP8ZhpdqXFZiPT1Q4bbhC3pRq0";
-const GID = "1322760750"; // cambia al GID correcto
+const GID = "1322760750"; // GID de la pestaña Inventario
 const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
-let filas = []; // guardaremos los datos aquí después de cargar CSV
+let filas = [];
 const tbody = document.querySelector("#tabla tbody");
 const inputBuscar = document.getElementById("buscar");
+const btnAll = document.getElementById("btnAll");
+const btnClear = document.getElementById("btnClear");
+const contador = document.getElementById("contador");
 
-// Al cargar la página, cargamos el CSV pero no mostramos nada
 fetch(URL)
   .then(res => res.text())
   .then(csv => {
     filas = csv.trim().split("\n").map(line => line.split(","));
-    // filas[0] = encabezados
   })
   .catch(err => console.error("Error cargando CSV:", err));
 
-// Función para mostrar filas filtradas
-function mostrarFilas(filtro) {
-  tbody.innerHTML = ""; // limpio tabla
-  if (!filtro) return; // si filtro vacío, no mostrar nada
-
+function mostrarFilas(filtro = "") {
+  tbody.innerHTML = "";
   const filtroLower = filtro.toLowerCase();
+  let encontrados = 0;
 
   filas.slice(1).forEach(fila => {
-    // asumimos columna 0 = empleado, ajustar si no es así
-    if (fila[0].toLowerCase().includes(filtroLower)) {
+    if (!filtro || fila[0].toLowerCase().includes(filtroLower)) {
       const tr = document.createElement("tr");
       fila.forEach(col => {
         const td = document.createElement("td");
-        td.textContent = col;
+        td.textContent = col.trim() !== "" ? col : "No aplica";
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
+      encontrados++;
     }
   });
+
+  if (encontrados === 0 && filtro) {
+    const tr = document.createElement("tr");
+    const numCols = filas[0].length;
+    for (let i = 0; i < numCols; i++) {
+      const td = document.createElement("td");
+      td.textContent = "N/A";
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+
+  contador.textContent = encontrados > 0
+    ? `Mostrando ${encontrados} resultado(s)`
+    : (filtro ? "Sin resultados" : "");
 }
 
-// Evento input para filtrar en tiempo real
+// Mantener búsqueda fija al presionar Enter
+inputBuscar.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    mostrarFilas(inputBuscar.value);
+  }
+});
+
+// Filtrar mientras escribe (sin borrar búsqueda al perder foco)
 inputBuscar.addEventListener("input", e => {
   mostrarFilas(e.target.value);
 });
 
+btnAll.addEventListener("click", () => {
+  inputBuscar.value = "";
+  mostrarFilas();
+});
+
+btnClear.addEventListener("click", () => {
+  inputBuscar.value = "";
+  tbody.innerHTML = "";
+  contador.textContent = "";
+});
 </script>
 
 </body>
 </html>
-
-
-
-
