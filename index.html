@@ -12,7 +12,7 @@
     #contador { font-size: 18px; margin: 15px 0; font-weight: bold; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background: #f4f4f4; }
+    th { background: #f4f4f4; cursor: pointer; }
     td { cursor: default; }
     td.clickable { color: blue; text-decoration: underline; cursor: pointer; }
 
@@ -80,6 +80,7 @@ const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrq42GMJqgn_ib5x9t
 
 let filas = [];
 let headers = [];
+let sortDirection = {}; // Para saber si es asc/desc por columna
 const tbody = document.getElementById("tbody");
 const thead = document.getElementById("thead");
 const contador = document.getElementById("contador");
@@ -105,8 +106,11 @@ function construirVista() {
   // Asegurar "Tipo" = última columna
   indices[indices.length - 1] = headers.indexOf("Tipo") !== -1 ? headers.indexOf("Tipo") : headers.length - 1;
 
-  // Construir encabezado
-  thead.innerHTML = columnasVisibles.map(h => `<th>${h}</th>`).join("");
+  // Construir encabezado con íconos de ordenamiento
+  thead.innerHTML = columnasVisibles.map((h, idx) => 
+    `<th onclick="ordenarTabla(${indices[idx]})">${h} <span id="icon-${indices[idx]}">↕️</span></th>`
+  ).join("");
+  
   tbody.innerHTML = "";
 
   const textoBusqueda = inputBuscar.value.trim().toLowerCase();
@@ -123,25 +127,46 @@ function construirVista() {
     indices.forEach((i, idx) => {
       const td = document.createElement("td");
       let valor = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
-      td.textContent = valor;
 
-      // Hacer "Empleado" clickeable
-      if (idx === 0) {
+      // Empleado siempre en mayúsculas
+      if (columnasVisibles[idx] === "Empleado") {
+        valor = valor.toUpperCase();
         td.classList.add("clickable");
-        td.onclick = () => mostrarDetalle(fila[headers.indexOf("Empleado")]);
+        td.onclick = () => mostrarDetalle(valor);
       }
 
+      td.textContent = valor;
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   });
 }
 
+// 🔹 Ordenar tabla por columna
+function ordenarTabla(colIndex) {
+  const rows = filas.slice(1);
+  sortDirection[colIndex] = !sortDirection[colIndex]; // alternar orden
+
+  rows.sort((a, b) => {
+    const valA = (a[colIndex] || "").toUpperCase();
+    const valB = (b[colIndex] || "").toUpperCase();
+    if (valA < valB) return sortDirection[colIndex] ? -1 : 1;
+    if (valA > valB) return sortDirection[colIndex] ? 1 : -1;
+    return 0;
+  });
+
+  filas = [headers].concat(rows); // reconstruir matriz
+  construirVista();
+
+  // Actualizar ícono visual
+  document.querySelectorAll("thead span").forEach(s => s.textContent = "↕️");
+  document.getElementById(`icon-${colIndex}`).textContent = sortDirection[colIndex] ? "🔼" : "🔽";
+}
+
 // Mostrar detalle en modal
 function mostrarDetalle(empleado) {
-  const rows = filas.slice(1).filter(r => (r[headers.indexOf("Empleado")] || "").toLowerCase() === empleado.toLowerCase());
+  const rows = filas.slice(1).filter(r => (r[headers.indexOf("Empleado")] || "").toUpperCase() === empleado.toUpperCase());
 
-  // Construir encabezados detalle
   document.getElementById("theadDetalle").innerHTML = headers.map(h => `<th>${h}</th>`).join("");
   const tbodyDetalle = document.getElementById("tbodyDetalle");
   tbodyDetalle.innerHTML = "";
@@ -150,7 +175,9 @@ function mostrarDetalle(empleado) {
     const tr = document.createElement("tr");
     headers.forEach((h, i) => {
       const td = document.createElement("td");
-      td.textContent = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
+      let valor = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
+      if (h === "Empleado") valor = valor.toUpperCase();
+      td.textContent = valor;
       tr.appendChild(td);
     });
     tbodyDetalle.appendChild(tr);
