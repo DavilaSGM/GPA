@@ -1,122 +1,107 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventario - Grupo Armenta</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  input, button { padding: 8px; margin: 5px; }
-  table { border-collapse: collapse; margin-top: 20px; width: 100%; }
-  th, td { border: 1px solid #ccc; padding: 8px; }
-  th { background: #f4f4f4; }
-  #contador { margin: 10px 5px; font-weight: bold; }
-</style>
+  <meta charset="UTF-8">
+  <title>Inventario - Consulta</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h2 { margin-bottom: 10px; }
+    input, button { padding: 8px; margin: 5px; border: none; cursor: pointer; }
+    #btnAll { background-color: #4CAF50; color: white; }
+    #btnClear { background-color: gray; color: white; }
+    #contador { font-size: 18px; margin: 15px 0; font-weight: bold; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
+  </style>
 </head>
 <body>
 
-<h2>Inventario Grupo Armenta</h2>
-<input type="text" id="buscar" placeholder="Escribe el nombre del empleado...">
-<button id="btnAll">Mostrar todo</button>
-<button id="btnClear">Limpiar</button>
+<h2>Inventario de Cómputo</h2>
+
+<div>
+  <input type="text" id="buscar" placeholder="Buscar por empleado...">
+  <button id="btnAll">Mostrar todo</button>
+  <button id="btnClear">Limpiar</button>
+</div>
+
 <div id="contador"></div>
 
 <table id="tabla">
-  <thead>
-    <tr>
-      <th>Empleado</th>
-      <th>Area</th>
-      <th>Oficina</th>
-      <th>Marca</th>
-      <th>Modelo</th>
-      <th>Serie</th>
-      <th>Procesador</th>
-      <th>Tipo</th>
-      <th>Monitor</th>
-      <th>Marca</th>
-      <th>Modelo</th>
-      <th>Serie Monitor</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
+  <thead><tr id="thead"></tr></thead>
+  <tbody id="tbody"></tbody>
 </table>
 
 <script>
-const SHEET_ID = "1KdupeI8b4ePrCIhAkzP8ZhpdqXFZiPT1Q4bbhC3pRq0";
-const GID = "1322760750"; // GID de la pestaña Inventario
-const URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+// ⚠️ Sustituye con tu enlace CSV publicado en Google Sheets
+const URL = "TU_URL_CSV_AQUI";
 
 let filas = [];
-const tbody = document.querySelector("#tabla tbody");
-const inputBuscar = document.getElementById("buscar");
-const btnAll = document.getElementById("btnAll");
-const btnClear = document.getElementById("btnClear");
+const tbody = document.getElementById("tbody");
+const thead = document.getElementById("thead");
 const contador = document.getElementById("contador");
+const inputBuscar = document.getElementById("buscar");
+
+// ✅ Columnas que vamos a mostrar en pantalla
+const columnasVisibles = ["Empleado","Area","Oficina","Marca","Modelo","Serie","Procesador","Tipo"];
 
 fetch(URL)
   .then(res => res.text())
   .then(csv => {
-    filas = csv.trim().split("\n").map(line => line.split(","));
+    filas = csv.trim().split("\n").map(r => r.split(","));
+    construirVista();
   })
   .catch(err => console.error("Error cargando CSV:", err));
 
-function mostrarFilas(filtro = "") {
-  tbody.innerHTML = "";
-  const filtroLower = filtro.toLowerCase();
-  let encontrados = 0;
+function construirVista() {
+  const headers = filas[0];
+  const rows = filas.slice(1);
 
-  filas.slice(1).forEach(fila => {
-    if (!filtro || fila[0].toLowerCase().includes(filtroLower)) {
-      const tr = document.createElement("tr");
-      fila.forEach(col => {
-        const td = document.createElement("td");
-        td.textContent = col.trim() !== "" ? col : "No aplica";
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-      encontrados++;
-    }
+  // Buscar índices de las columnas visibles
+  const indices = columnasVisibles.map(c => headers.indexOf(c)).filter(i => i !== -1);
+
+  // Construir encabezados
+  thead.innerHTML = columnasVisibles.map(h => `<th>${h}</th>`).join("");
+  tbody.innerHTML = "";
+
+  const textoBusqueda = inputBuscar.value.trim().toLowerCase();
+
+  const filtrados = rows.filter(r => {
+    const empleado = (r[headers.indexOf("Empleado")] || "").toLowerCase();
+    return textoBusqueda === "" || empleado.includes(textoBusqueda);
   });
 
-  if (encontrados === 0 && filtro) {
-    const tr = document.createElement("tr");
-    const numCols = filas[0].length;
-    for (let i = 0; i < numCols; i++) {
-      const td = document.createElement("td");
-      td.textContent = "N/A";
-      tr.appendChild(td);
-    }
-    tbody.appendChild(tr);
-  }
+  contador.textContent = `Total: ${filtrados.length}`;
 
-  contador.textContent = encontrados > 0
-    ? `Mostrando ${encontrados} resultado(s)`
-    : (filtro ? "Sin resultados" : "");
+  filtrados.forEach(fila => {
+    const tr = document.createElement("tr");
+    indices.forEach(i => {
+      const td = document.createElement("td");
+      td.textContent = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
 }
 
-// Mantener búsqueda fija al presionar Enter
-inputBuscar.addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    mostrarFilas(inputBuscar.value);
-  }
+// Buscar con Enter
+inputBuscar.addEventListener("keypress", e => {
+  if (e.key === "Enter") construirVista();
 });
 
-// Filtrar mientras escribe (sin borrar búsqueda al perder foco)
-inputBuscar.addEventListener("input", e => {
-  mostrarFilas(e.target.value);
-});
-
-btnAll.addEventListener("click", () => {
+// Botón Mostrar todo
+document.getElementById("btnAll").onclick = () => {
   inputBuscar.value = "";
-  mostrarFilas();
-});
+  construirVista();
+};
 
-btnClear.addEventListener("click", () => {
+// Botón Limpiar
+document.getElementById("btnClear").onclick = () => {
   inputBuscar.value = "";
   tbody.innerHTML = "";
   contador.textContent = "";
-});
+  thead.innerHTML = columnasVisibles.map(h => `<th>${h}</th>`).join("");
+};
 </script>
 
 </body>
