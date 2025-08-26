@@ -13,6 +13,36 @@
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     th { background: #f4f4f4; }
+    td { cursor: default; }
+    td.clickable { color: blue; text-decoration: underline; cursor: pointer; }
+
+    /* Modal */
+    #modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+    }
+    #modal-content {
+      background: white;
+      margin: 5% auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 900px;
+      border-radius: 6px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #closeModal {
+      background: red;
+      color: white;
+      padding: 6px 12px;
+      border: none;
+      cursor: pointer;
+      float: right;
+    }
   </style>
 </head>
 <body>
@@ -32,35 +62,50 @@
   <tbody id="tbody"></tbody>
 </table>
 
+<!-- Modal flotante -->
+<div id="modal">
+  <div id="modal-content">
+    <button id="closeModal">Cerrar</button>
+    <h3>Detalle del empleado</h3>
+    <table id="tablaDetalle">
+      <thead><tr id="theadDetalle"></tr></thead>
+      <tbody id="tbodyDetalle"></tbody>
+    </table>
+  </div>
+</div>
+
 <script>
 // ⚠️ Sustituye con tu enlace CSV publicado en Google Sheets
 const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrq42GMJqgn_ib5x9t1OH894InFgOPmGqgxX_HSPtdG-OE0ldgf_f9c-Tk_cG3HzhcZbSAuOOZPcoR/pub?gid=1357523642&single=true&output=csv";
 
 let filas = [];
+let headers = [];
 const tbody = document.getElementById("tbody");
 const thead = document.getElementById("thead");
 const contador = document.getElementById("contador");
 const inputBuscar = document.getElementById("buscar");
 
-// ✅ Columnas que vamos a mostrar en pantalla
+// ✅ Columnas principales
 const columnasVisibles = ["Empleado","Area","Oficina","Marca","Modelo","Serie","Procesador","Tipo"];
 
 fetch(URL)
   .then(res => res.text())
   .then(csv => {
     filas = csv.trim().split("\n").map(r => r.split(","));
+    headers = filas[0];
     construirVista();
   })
   .catch(err => console.error("Error cargando CSV:", err));
 
 function construirVista() {
-  const headers = filas[0];
   const rows = filas.slice(1);
 
-  // Buscar índices de las columnas visibles
-  const indices = columnasVisibles.map(c => headers.indexOf(c)).filter(i => i !== -1);
+  // Índices de columnas visibles
+  let indices = columnasVisibles.map(c => headers.indexOf(c));
+  // Asegurar "Tipo" = última columna
+  indices[indices.length - 1] = headers.indexOf("Tipo") !== -1 ? headers.indexOf("Tipo") : headers.length - 1;
 
-  // Construir encabezados
+  // Construir encabezado
   thead.innerHTML = columnasVisibles.map(h => `<th>${h}</th>`).join("");
   tbody.innerHTML = "";
 
@@ -75,14 +120,49 @@ function construirVista() {
 
   filtrados.forEach(fila => {
     const tr = document.createElement("tr");
-    indices.forEach(i => {
+    indices.forEach((i, idx) => {
       const td = document.createElement("td");
-      td.textContent = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
+      let valor = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
+      td.textContent = valor;
+
+      // Hacer "Empleado" clickeable
+      if (idx === 0) {
+        td.classList.add("clickable");
+        td.onclick = () => mostrarDetalle(fila[headers.indexOf("Empleado")]);
+      }
+
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   });
 }
+
+// Mostrar detalle en modal
+function mostrarDetalle(empleado) {
+  const rows = filas.slice(1).filter(r => (r[headers.indexOf("Empleado")] || "").toLowerCase() === empleado.toLowerCase());
+
+  // Construir encabezados detalle
+  document.getElementById("theadDetalle").innerHTML = headers.map(h => `<th>${h}</th>`).join("");
+  const tbodyDetalle = document.getElementById("tbodyDetalle");
+  tbodyDetalle.innerHTML = "";
+
+  rows.forEach(fila => {
+    const tr = document.createElement("tr");
+    headers.forEach((h, i) => {
+      const td = document.createElement("td");
+      td.textContent = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
+      tr.appendChild(td);
+    });
+    tbodyDetalle.appendChild(tr);
+  });
+
+  document.getElementById("modal").style.display = "block";
+}
+
+// Cerrar modal
+document.getElementById("closeModal").onclick = () => {
+  document.getElementById("modal").style.display = "none";
+};
 
 // Buscar con Enter
 inputBuscar.addEventListener("keypress", e => {
@@ -106,5 +186,3 @@ document.getElementById("btnClear").onclick = () => {
 
 </body>
 </html>
-
-
