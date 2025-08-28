@@ -86,14 +86,23 @@ const thead = document.getElementById("thead");
 const contador = document.getElementById("contador");
 const inputBuscar = document.getElementById("buscar");
 
-// ✅ Columnas principales (Marca Temporal eliminada)
+// ✅ Columnas principales
 const columnasVisibles = ["Empleado","Area","Oficina","Marca","Modelo","Serie","Procesador","Tipo"];
 
 fetch(URL)
   .then(res => res.text())
   .then(csv => {
-    filas = csv.trim().split("\n").map(r => r.split(","));
-    headers = filas[0].filter(h => h.trim().toLowerCase() !== "marca temporal".toLowerCase()); // excluir Marca Temporal
+    // Procesar CSV y eliminar "Marca Temporal"
+    let raw = csv.trim().split("\n").map(r => r.split(","));
+    let idxMarcaTemporal = raw[0].findIndex(h => h.trim().toLowerCase() === "marca temporal");
+
+    if (idxMarcaTemporal !== -1) {
+      filas = raw.map(r => r.filter((_, i) => i !== idxMarcaTemporal)); // quitar columna completa
+    } else {
+      filas = raw;
+    }
+
+    headers = filas[0]; // encabezados ya sin "Marca Temporal"
     construirVista();
   })
   .catch(err => console.error("Error cargando CSV:", err));
@@ -101,7 +110,7 @@ fetch(URL)
 function construirVista() {
   const rows = filas.slice(1);
 
-  // Índices de columnas visibles (sin Marca Temporal)
+  // Índices de columnas visibles
   let indices = columnasVisibles.map(c => headers.indexOf(c));
   // Asegurar "Tipo" = última columna válida
   indices[indices.length - 1] = headers.indexOf("Tipo") !== -1 ? headers.indexOf("Tipo") : headers.length - 1;
@@ -114,9 +123,9 @@ function construirVista() {
   tbody.innerHTML = "";
 
   const textoBusqueda = inputBuscar.value.trim().toLowerCase();
+  const empleadoIdx = headers.indexOf("Empleado");
 
   const filtrados = rows.filter(r => {
-    const empleadoIdx = filas[0].indexOf("Empleado");
     const empleado = (r[empleadoIdx] || "").toLowerCase();
     return textoBusqueda === "" || empleado.includes(textoBusqueda);
   });
@@ -164,22 +173,18 @@ function ordenarTabla(colIndex) {
   document.getElementById(`icon-${colIndex}`).textContent = sortDirection[colIndex] ? "🔼" : "🔽";
 }
 
-// Mostrar detalle en modal (sin "Marca Temporal")
+// Mostrar detalle en modal
 function mostrarDetalle(empleado) {
-  const empleadoIdx = filas[0].indexOf("Empleado");
+  const empleadoIdx = headers.indexOf("Empleado");
   const rows = filas.slice(1).filter(r => (r[empleadoIdx] || "").toUpperCase() === empleado.toUpperCase());
 
-  // Encabezados filtrados (sin Marca Temporal)
-  const headersFiltrados = filas[0].filter(h => h.trim().toLowerCase() !== "marca temporal".toLowerCase());
-
-  document.getElementById("theadDetalle").innerHTML = headersFiltrados.map(h => `<th>${h}</th>`).join("");
+  document.getElementById("theadDetalle").innerHTML = headers.map(h => `<th>${h}</th>`).join("");
   const tbodyDetalle = document.getElementById("tbodyDetalle");
   tbodyDetalle.innerHTML = "";
 
   rows.forEach(fila => {
     const tr = document.createElement("tr");
-    filas[0].forEach((h, i) => {
-      if (h.trim().toLowerCase() === "marca temporal".toLowerCase()) return; // ❌ excluir
+    headers.forEach((h, i) => {
       const td = document.createElement("td");
       let valor = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
       if (h === "Empleado") valor = valor.toUpperCase();
@@ -219,4 +224,3 @@ document.getElementById("btnClear").onclick = () => {
 
 </body>
 </html>
-
