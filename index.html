@@ -76,24 +76,24 @@
 
 <script>
 // ⚠️ Sustituye con tu enlace CSV publicado en Google Sheets
-const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRrq42GMJqgn_ib5x9t1OH894InFgOPmGqgxX_HSPtdG-OE0ldgf_f9c-Tk_cG3HzhcZbSAuOOZPcoR/pub?gid=1357523642&single=true&output=csv";
+const URL = "TU_URL_CSV_PUBLICA_AQUI";
 
 let filas = [];
 let headers = [];
-let sortDirection = {}; // Para saber si es asc/desc por columna
+let sortDirection = {}; // Control de orden asc/desc
 const tbody = document.getElementById("tbody");
 const thead = document.getElementById("thead");
 const contador = document.getElementById("contador");
 const inputBuscar = document.getElementById("buscar");
 
-// ✅ Columnas principales
+// ✅ Columnas principales (Marca Temporal eliminada)
 const columnasVisibles = ["Empleado","Area","Oficina","Marca","Modelo","Serie","Procesador","Tipo"];
 
 fetch(URL)
   .then(res => res.text())
   .then(csv => {
     filas = csv.trim().split("\n").map(r => r.split(","));
-    headers = filas[0];
+    headers = filas[0].filter(h => h.trim().toLowerCase() !== "marca temporal".toLowerCase()); // excluir Marca Temporal
     construirVista();
   })
   .catch(err => console.error("Error cargando CSV:", err));
@@ -101,9 +101,9 @@ fetch(URL)
 function construirVista() {
   const rows = filas.slice(1);
 
-  // Índices de columnas visibles
+  // Índices de columnas visibles (sin Marca Temporal)
   let indices = columnasVisibles.map(c => headers.indexOf(c));
-  // Asegurar "Tipo" = última columna
+  // Asegurar "Tipo" = última columna válida
   indices[indices.length - 1] = headers.indexOf("Tipo") !== -1 ? headers.indexOf("Tipo") : headers.length - 1;
 
   // Construir encabezado con íconos de ordenamiento
@@ -116,7 +116,8 @@ function construirVista() {
   const textoBusqueda = inputBuscar.value.trim().toLowerCase();
 
   const filtrados = rows.filter(r => {
-    const empleado = (r[headers.indexOf("Empleado")] || "").toLowerCase();
+    const empleadoIdx = filas[0].indexOf("Empleado");
+    const empleado = (r[empleadoIdx] || "").toLowerCase();
     return textoBusqueda === "" || empleado.includes(textoBusqueda);
   });
 
@@ -128,7 +129,7 @@ function construirVista() {
       const td = document.createElement("td");
       let valor = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
 
-      // Empleado siempre en mayúsculas
+      // Empleado siempre en mayúsculas y clickeable
       if (columnasVisibles[idx] === "Empleado") {
         valor = valor.toUpperCase();
         td.classList.add("clickable");
@@ -155,7 +156,7 @@ function ordenarTabla(colIndex) {
     return 0;
   });
 
-  filas = [headers].concat(rows); // reconstruir matriz
+  filas = [filas[0]].concat(rows);
   construirVista();
 
   // Actualizar ícono visual
@@ -163,17 +164,22 @@ function ordenarTabla(colIndex) {
   document.getElementById(`icon-${colIndex}`).textContent = sortDirection[colIndex] ? "🔼" : "🔽";
 }
 
-// Mostrar detalle en modal
+// Mostrar detalle en modal (sin "Marca Temporal")
 function mostrarDetalle(empleado) {
-  const rows = filas.slice(1).filter(r => (r[headers.indexOf("Empleado")] || "").toUpperCase() === empleado.toUpperCase());
+  const empleadoIdx = filas[0].indexOf("Empleado");
+  const rows = filas.slice(1).filter(r => (r[empleadoIdx] || "").toUpperCase() === empleado.toUpperCase());
 
-  document.getElementById("theadDetalle").innerHTML = headers.map(h => `<th>${h}</th>`).join("");
+  // Encabezados filtrados (sin Marca Temporal)
+  const headersFiltrados = filas[0].filter(h => h.trim().toLowerCase() !== "marca temporal".toLowerCase());
+
+  document.getElementById("theadDetalle").innerHTML = headersFiltrados.map(h => `<th>${h}</th>`).join("");
   const tbodyDetalle = document.getElementById("tbodyDetalle");
   tbodyDetalle.innerHTML = "";
 
   rows.forEach(fila => {
     const tr = document.createElement("tr");
-    headers.forEach((h, i) => {
+    filas[0].forEach((h, i) => {
+      if (h.trim().toLowerCase() === "marca temporal".toLowerCase()) return; // ❌ excluir
       const td = document.createElement("td");
       let valor = fila[i] && fila[i].trim() !== "" ? fila[i] : "N/A";
       if (h === "Empleado") valor = valor.toUpperCase();
